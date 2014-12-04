@@ -1,0 +1,152 @@
+#!/usr/bin/env python3
+"""
+Migrates modules and configurations between puppet environments
+"""
+from tkinter import *
+from tkinter import ttk
+import re
+import os
+import argparse
+from subprocess import *
+from repolibs.puppetrepo import\
+    PuppetConfigRepo,\
+    PuppetConfigRepoError,\
+    PuppetEnvComparison
+
+# TODO Add GUI etc.
+
+class App(object):
+    """
+    Contains the code for the main app
+    """
+
+    def __init__(self):
+        """
+        Set up the application, read in command line values.
+        """
+        # Define and set various default values
+        # Find the repo I am in
+        self.args = self.parse_args()
+        self.puppetrepo = PuppetConfigRepo(
+            self.args.puppetdir,
+            self.args.hieradir
+        )
+
+        # Check the arguments and select the appropriate action
+        if self.args.subparser_name == 'report':
+            self.report()
+        elif self.args.subparser_name == 'migrate':
+            self.migrate(self.args.from_env, self.args.to_env)
+
+    @classmethod
+    def parse_args(cls):
+        """
+        Get the arguments from the command line
+        """
+
+        # Top level parser, contains common options
+        parser = argparse.ArgumentParser()
+
+        # Puppet configuration directory
+        parser.add_argument(
+            '--puppetdir',
+            default='/etc/puppet',
+            help=\
+                "Root of the puppet configuration repository"\
+                'Defaults to /etc/puppet'
+        )
+
+        parser.add_argument(
+            '--hieradir',
+            default='hiera',
+            help=\
+                "Path to hiera data.\n"\
+                'Defaults to hiera.\n'\
+                'If the path starts with a / it is an absolute path,'\
+                'otherwise a path relative to the puppetdir'
+        )
+
+        # Set up the subparsers for various use cases
+        subparsers = parser.add_subparsers(
+            title='subcommands',
+            description='valid subcommands',
+            help='additional help',
+            dest='subparser_name'
+        )
+
+        # Arguments for the report subcommand
+        report = subparsers.add_parser(
+            'report',
+            help='Print report of the given repo.'
+        )
+        report.add_argument(
+            '--verbose',
+            action='store_true'
+        )
+
+        # Arguments for the migrate subcommand
+        migrate = subparsers.add_parser(
+            'migrate',
+            help='Migrate configuration between puppet environments.'
+        )
+        migrate.add_argument(
+            '--from_env',
+            default='dev',
+            help='Default: dev'
+        )
+        migrate.add_argument(
+            '--to_env',
+            default='production',
+            help='Default: production'
+        )
+
+        # Actually read in the arguments from the command line
+        args = parser.parse_args()
+
+        # Check if there are any subcommands given
+        if not args.subparser_name:
+            parser.print_help()
+            sys.exit(1)
+
+        # Do some argument checking
+
+        # Check the puppet directory
+        if not os.path.isdir(args.puppetdir):
+            sys.stderr.write(
+                'Directory ' + args.puppetdir +
+                ' is not a directory\n'
+            )
+            sys.exit(1)
+
+        # Check the hiera directory
+        if args.hieradir[0] != '/':
+            args.hieradir = "%s/%s" % (args.puppetdir, args.hieradir)
+
+        if not os.path.isdir(args.hieradir):
+            sys.stderr.write(
+                'Directory ' + args.hieradir +
+                ' is not a directory\n'
+            )
+            sys.exit(1)
+
+        return args
+
+    def migrate(self, from_env, to_env):
+        """
+        Runs a migration between two environments
+        """
+        self.puppetrepo.migrate(from_env, to_env)
+        print(
+            'Migration between %s and %s completed successfully'
+            % (from_env, to_env)
+        )
+
+    def report(self):
+        """
+        Dumps a text report of the repository status to stdout
+        """
+        print(self.puppetrepo)
+
+if __name__ == '__main__':
+
+    app = App()
