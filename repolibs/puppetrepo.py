@@ -154,18 +154,17 @@ class PuppetConfigRepo(object):
         for env in [from_env, to_env]:
             if not env in self.environments:
                 raise PuppetConfigRepoError(
-                    '%s environment does not exist'
-                    % env
+                    '{} environment does not exist'.format(env)
                 )
 
-        from_hiera = '%s/%s' % (self.hiera_root, from_env)
-        to_hiera = '%s/%s' % (self.hiera_root, to_env)
+        from_hiera = '{}/environments/{}'.format(self.hiera_root, from_env)
+        to_hiera = '{}/environments/{}'.format(self.hiera_root, to_env)
 
         for hiera_dir in [from_hiera, to_hiera]:
             if not os.path.isdir(hiera_dir):
                 raise PuppetConfigRepoError(
-                    '%s is not a directory'
-                    % hiera_dir
+                    '{} is not a directory'.\
+                    format(hiera_dir)
                 )
 
         # Create a comparison between environments to check that we can
